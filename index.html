@@ -204,7 +204,7 @@ function bind(){
     });
   });
   document.querySelectorAll("#list .stepbtn").forEach(btn=>{
-    btn.addEventListener("click",()=>{
+    const act=()=>{
       const k=btn.dataset.k,f=btn.dataset.f;
       const dir=parseFloat(btn.dataset.dir),step=parseFloat(btn.dataset.step);
       const inp=document.querySelector('#list input[data-k="'+CSS.escape(k)+'"][data-f="'+f+'"]');
@@ -219,7 +219,11 @@ function bind(){
       DRAFT[k].done=false;
       const sb=document.querySelector('.save[data-k="'+CSS.escape(k)+'"]');
       if(sb)sb.classList.remove("done");
-    });
+    };
+    let touched=false;
+    // touchend에서 처리 + preventDefault → iOS 더블탭 줌 차단(연타해도 동작은 유지)
+    btn.addEventListener("touchend",e=>{e.preventDefault();touched=true;act();},{passive:false});
+    btn.addEventListener("click",()=>{if(touched){touched=false;return;}act();});
   });
   document.querySelectorAll("#list .save").forEach(btn=>{
     btn.addEventListener("click",()=>{
