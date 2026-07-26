@@ -40,14 +40,18 @@
   .cue b{font-weight:700}
   .prev{font-size:12px;color:var(--mut);margin-bottom:10px;font-variant-numeric:tabular-nums}
   .prev.blank{color:var(--mut);opacity:.6}
-  .row{display:flex;gap:8px;align-items:flex-end}
-  .fld{flex:1;display:flex;flex-direction:column;gap:5px}
-  .fld label{font-size:12px;color:var(--sub);padding-left:2px}
-  .fld input{width:100%;height:52px;background:var(--card2);border:1px solid var(--line);
-    border-radius:11px;color:var(--txt);font-size:20px;font-weight:600;text-align:center;
+  .steplbl{font-size:12px;color:var(--sub);padding-left:2px;margin-bottom:6px}
+  .step{display:flex;gap:8px;align-items:stretch;margin-bottom:12px}
+  .step input{flex:1;min-width:0;height:64px;background:var(--card2);border:1px solid var(--line);
+    border-radius:12px;color:var(--txt);font-size:24px;font-weight:700;text-align:center;
     font-variant-numeric:tabular-nums;outline:none}
-  .fld input:focus{border-color:var(--accent)}
-  .save{width:56px;height:52px;flex:0 0 56px;border:1px solid var(--line);border-radius:11px;
+  .step input:focus{border-color:var(--accent)}
+  .stepbtn{flex:0 0 72px;height:64px;border:1px solid var(--line);border-radius:12px;
+    background:var(--card2);color:var(--txt);font-size:34px;font-weight:600;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;transition:.1s}
+  .stepbtn:active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+  .save{width:100%;height:52px;border:1px solid var(--line);border-radius:12px;margin-top:2px;
     background:var(--card2);color:var(--mut);font-size:22px;cursor:pointer;display:flex;
     align-items:center;justify-content:center;transition:.12s}
   .save.done{background:var(--up-bg);border-color:var(--up);color:var(--up)}
@@ -165,14 +169,20 @@ function render(){
       '<span class="ex-target">'+ex.sets+'세트 · 목표 '+ex.lo+'-'+ex.hi+'회</span></div>'+
       '<div class="cue '+cue.cls+'">'+cue.html+'</div>'+
       '<div class="prev'+(last&&last.w!=null?"":" blank")+'">'+prevTxt+'</div>'+
-      '<div class="row">'+
-        '<div class="fld"><label>중량 kg</label>'+
-          '<input type="number" inputmode="decimal" data-k="'+k+'" data-f="w" value="'+draft.w+'" placeholder="'+(last&&last.w!=null?last.w:"0")+'"></div>'+
-        '<div class="fld"><label>횟수</label>'+
-          '<input type="number" inputmode="numeric" data-k="'+k+'" data-f="r" value="'+draft.r+'" placeholder="'+(last&&last.r!=null?last.r:"0")+'"></div>'+
-        '<button class="save'+(draft.done?" done":"")+'" data-k="'+k+'" aria-label="이 종목 저장">'+
-          checkSvg()+'</button>'+
-      '</div>';
+      '<div class="steplbl">중량 kg</div>'+
+      '<div class="step">'+
+        '<button class="stepbtn" data-k="'+k+'" data-f="w" data-dir="-1" data-step="'+ex.step+'" aria-label="중량 내리기">−</button>'+
+        '<input type="number" inputmode="decimal" data-k="'+k+'" data-f="w" value="'+draft.w+'" placeholder="'+(last&&last.w!=null?last.w:"0")+'">'+
+        '<button class="stepbtn" data-k="'+k+'" data-f="w" data-dir="1" data-step="'+ex.step+'" aria-label="중량 올리기">+</button>'+
+      '</div>'+
+      '<div class="steplbl">횟수</div>'+
+      '<div class="step">'+
+        '<button class="stepbtn" data-k="'+k+'" data-f="r" data-dir="-1" data-step="1" aria-label="횟수 내리기">−</button>'+
+        '<input type="number" inputmode="numeric" data-k="'+k+'" data-f="r" value="'+draft.r+'" placeholder="'+(last&&last.r!=null?last.r:"0")+'">'+
+        '<button class="stepbtn" data-k="'+k+'" data-f="r" data-dir="1" data-step="1" aria-label="횟수 올리기">+</button>'+
+      '</div>'+
+      '<button class="save'+(draft.done?" done":"")+'" data-k="'+k+'" aria-label="이 종목 저장">'+
+        checkSvg()+'</button>';
     list.appendChild(el);
   });
   bind();
@@ -191,6 +201,24 @@ function bind(){
       DRAFT[k].done=false;
       const btn=document.querySelector('.save[data-k="'+CSS.escape(k)+'"]');
       if(btn)btn.classList.remove("done");
+    });
+  });
+  document.querySelectorAll("#list .stepbtn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const k=btn.dataset.k,f=btn.dataset.f;
+      const dir=parseFloat(btn.dataset.dir),step=parseFloat(btn.dataset.step);
+      const inp=document.querySelector('#list input[data-k="'+CSS.escape(k)+'"][data-f="'+f+'"]');
+      let base=parseFloat(inp.value);
+      if(isNaN(base))base=parseFloat(inp.placeholder)||0;
+      let nv=base+dir*step;
+      if(nv<0)nv=0;
+      nv=+nv.toFixed(2);
+      inp.value=nv;
+      if(!DRAFT[k])DRAFT[k]={w:"",r:"",done:false};
+      DRAFT[k][f]=String(nv);
+      DRAFT[k].done=false;
+      const sb=document.querySelector('.save[data-k="'+CSS.escape(k)+'"]');
+      if(sb)sb.classList.remove("done");
     });
   });
   document.querySelectorAll("#list .save").forEach(btn=>{
