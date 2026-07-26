@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>운동 기록</title>
+<style>
+  :root{
+    --bg:#0f0f10; --card:#1a1a1c; --card2:#232326;
+    --line:#2e2e32; --txt:#f2f2f3; --sub:#a0a0a6; --mut:#6b6b72;
+    --accent:#4f8ff7; --accent-bg:#16233a;
+    --up:#3ecf8e; --up-bg:#123027; --hold:#e0a53a; --hold-bg:#2e2410;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:520px;margin:0 auto;padding:16px 14px 40px}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+  .title{font-size:24px;font-weight:700;letter-spacing:-0.5px}
+  .date{font-size:13px;color:var(--sub);margin-top:2px}
+  .streak{font-size:13px;color:var(--sub);text-align:right}
+  .streak b{color:var(--txt);font-size:15px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px}
+  .tab{flex:1;padding:12px 4px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--card);font-size:16px;font-weight:600;color:var(--sub);cursor:pointer;
+    transition:.12s}
+  .tab.on{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+  .ex{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:11px}
+  .ex-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
+  .ex-name{font-size:16px;font-weight:600}
+  .ex-target{font-size:12px;color:var(--mut);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .cue{font-size:13px;margin:6px 0 12px;padding:7px 10px;border-radius:9px;line-height:1.4}
+  .cue.up{background:var(--up-bg);color:var(--up)}
+  .cue.hold{background:var(--hold-bg);color:var(--hold)}
+  .cue.none{background:var(--card2);color:var(--sub)}
+  .cue b{font-weight:700}
+  .prev{font-size:12px;color:var(--mut);margin-bottom:10px;font-variant-numeric:tabular-nums}
+  .prev.blank{color:var(--mut);opacity:.6}
+  .row{display:flex;gap:8px;align-items:flex-end}
+  .fld{flex:1;display:flex;flex-direction:column;gap:5px}
+  .fld label{font-size:12px;color:var(--sub);padding-left:2px}
+  .fld input{width:100%;height:52px;background:var(--card2);border:1px solid var(--line);
+    border-radius:11px;color:var(--txt);font-size:20px;font-weight:600;text-align:center;
+    font-variant-numeric:tabular-nums;outline:none}
+  .fld input:focus{border-color:var(--accent)}
+  .save{width:56px;height:52px;flex:0 0 56px;border:1px solid var(--line);border-radius:11px;
+    background:var(--card2);color:var(--mut);font-size:22px;cursor:pointer;display:flex;
+    align-items:center;justify-content:center;transition:.12s}
+  .save.done{background:var(--up-bg);border-color:var(--up);color:var(--up)}
+  .foot{margin-top:20px;display:flex;gap:8px}
+  .foot button{flex:1;height:44px;border:1px solid var(--line);border-radius:11px;
+    background:var(--card);color:var(--sub);font-size:14px;font-weight:500;cursor:pointer}
+  .foot button.danger:active{background:#2a1414;color:#e26b6b}
+  .hint{font-size:12px;color:var(--mut);text-align:center;margin-top:16px;line-height:1.6}
+  .svg-check{width:22px;height:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="title">운동 기록</div>
+      <div class="date" id="today"></div>
+    </div>
+    <div class="streak" id="streak"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-d="push">Push</button>
+    <button class="tab" data-d="pull">Pull</button>
+    <button class="tab" data-d="legs">Legs</button>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="foot">
+    <button id="saveDay">오늘 세션 저장</button>
+    <button class="danger" id="clearAll">전체 초기화</button>
+  </div>
+
+  <div class="hint">
+    저번 기록과 목표 범위를 보고 안내가 떠.<br>
+    목표 상단 횟수를 다 채우면 → 다음엔 무게 올리고 횟수 리셋.<br>
+    기록은 이 브라우저에만 저장돼(localStorage).
+  </div>
+</div>
+
+<script>
+const ROUTINE={
+  push:[
+    {n:"Barbell Bench Press",sets:4,lo:5,hi:7,step:2.5},
+    {n:"Machine Shoulder Press",sets:3,lo:8,hi:10,step:2.5},
+    {n:"Incline DB Press",sets:3,lo:8,hi:10,step:2},
+    {n:"Cable Lateral Raise",sets:4,lo:12,hi:15,step:1},
+    {n:"One-Arm DB OH Extension",sets:3,lo:10,hi:12,step:2},
+    {n:"Cable Pushdown",sets:3,lo:12,hi:15,step:2.5}
+  ],
+  pull:[
+    {n:"Wide-Grip Lat Pulldown",sets:4,lo:8,hi:10,step:2.5},
+    {n:"Neutral-Grip Lat Pulldown",sets:3,lo:10,hi:12,step:2.5},
+    {n:"One-Arm DB Row",sets:3,lo:8,hi:10,step:2},
+    {n:"Straight-Arm Pulldown",sets:3,lo:12,hi:15,step:2.5},
+    {n:"Reverse Pec Deck",sets:3,lo:15,hi:20,step:2.5},
+    {n:"Incline DB Curl",sets:3,lo:8,hi:10,step:2}
+  ],
+  legs:[
+    {n:"Hack Squat",sets:4,lo:6,hi:8,step:5},
+    {n:"Leg Press",sets:3,lo:10,hi:12,step:5},
+    {n:"Seated Leg Curl",sets:3,lo:8,hi:10,step:2.5},
+    {n:"Lying Leg Curl",sets:3,lo:10,hi:12,step:2.5},
+    {n:"Leg Extension",sets:3,lo:12,hi:15,step:2.5},
+    {n:"Seated Calf Raise",sets:4,lo:12,hi:15,step:2.5}
+  ]
+};
+
+const LS_KEY="workout_log_v1";
+function loadDB(){try{return JSON.parse(localStorage.getItem(LS_KEY))||{}}catch(e){return{}}}
+function saveDB(db){localStorage.setItem(LS_KEY,JSON.stringify(db))}
+let DB=loadDB();
+// DB shape: { "push::Barbell Bench Press": {w:60,r:7,date:"2026-07-26"}, ... }  = last saved
+// draft held in memory:
+let DRAFT={};
+let cur="push";
+
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function keyOf(d,name){return d+"::"+name}
+
+function cueFor(ex,last){
+  // returns {cls, html}
+  if(!last||last.w==null){
+    return {cls:"none",html:"첫 기록이야. 편한 무게로 목표 <b>"+ex.lo+"회</b>부터 시작해."};
+  }
+  if(last.r>=ex.hi){
+    const nw=+(last.w+ex.step).toFixed(2);
+    return {cls:"up",html:"목표 상단 도달 ✓ 이번엔 <b>"+nw+"kg × "+ex.lo+"회</b>로 무게 올려."};
+  }
+  // within range -> add a rep
+  const tgt=Math.min(last.r+1,ex.hi);
+  return {cls:"hold",html:"<b>"+last.w+"kg</b> 유지, 이번엔 <b>"+tgt+"회</b> 노려."};
+}
+
+function render(){
+  document.getElementById("today").textContent=todayStr()+" · "+cur.toUpperCase()+" day";
+  const list=document.getElementById("list");
+  list.innerHTML="";
+  ROUTINE[cur].forEach((ex,i)=>{
+    const k=keyOf(cur,ex.n);
+    const last=DB[k];
+    const draft=DRAFT[k]||{w:"",r:"",done:false};
+    const cue=cueFor(ex,last);
+    const prevTxt=last&&last.w!=null
+      ? "지난 기록: "+last.w+"kg × "+last.r+"회 · "+last.date
+      : "지난 기록: 없음";
+    const el=document.createElement("div");
+    el.className="ex";
+    el.innerHTML=
+      '<div class="ex-head"><span class="ex-name">'+ex.n+'</span>'+
+      '<span class="ex-target">'+ex.sets+'세트 · 목표 '+ex.lo+'-'+ex.hi+'회</span></div>'+
+      '<div class="cue '+cue.cls+'">'+cue.html+'</div>'+
+      '<div class="prev'+(last&&last.w!=null?"":" blank")+'">'+prevTxt+'</div>'+
+      '<div class="row">'+
+        '<div class="fld"><label>중량 kg</label>'+
+          '<input type="number" inputmode="decimal" data-k="'+k+'" data-f="w" value="'+draft.w+'" placeholder="'+(last&&last.w!=null?last.w:"0")+'"></div>'+
+        '<div class="fld"><label>횟수</label>'+
+          '<input type="number" inputmode="numeric" data-k="'+k+'" data-f="r" value="'+draft.r+'" placeholder="'+(last&&last.r!=null?last.r:"0")+'"></div>'+
+        '<button class="save'+(draft.done?" done":"")+'" data-k="'+k+'" aria-label="이 종목 저장">'+
+          checkSvg()+'</button>'+
+      '</div>';
+    list.appendChild(el);
+  });
+  bind();
+}
+
+function checkSvg(){
+  return '<svg class="svg-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>';
+}
+
+function bind(){
+  document.querySelectorAll("#list input").forEach(inp=>{
+    inp.addEventListener("input",e=>{
+      const k=e.target.dataset.k,f=e.target.dataset.f;
+      if(!DRAFT[k])DRAFT[k]={w:"",r:"",done:false};
+      DRAFT[k][f]=e.target.value;
+      DRAFT[k].done=false;
+      const btn=document.querySelector('.save[data-k="'+CSS.escape(k)+'"]');
+      if(btn)btn.classList.remove("done");
+    });
+  });
+  document.querySelectorAll("#list .save").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const k=btn.dataset.k;
+      const d=DRAFT[k];
+      if(!d||d.w===""||d.r===""){
+        btn.animate([{transform:"translateX(0)"},{transform:"translateX(-4px)"},{transform:"translateX(4px)"},{transform:"translateX(0)"}],{duration:200});
+        return;
+      }
+      DB[k]={w:parseFloat(d.w),r:parseInt(d.r),date:todayStr()};
+      d.done=true;
+      saveDB(DB);
+      btn.classList.add("done");
+    });
+  });
+}
+
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+    t.classList.add("on");
+    cur=t.dataset.d;
+    render();
+  });
+});
+
+document.getElementById("saveDay").addEventListener("click",()=>{
+  let saved=0;
+  ROUTINE[cur].forEach(ex=>{
+    const k=keyOf(cur,ex.n);
+    const d=DRAFT[k];
+    if(d&&d.w!==""&&d.r!==""){
+      DB[k]={w:parseFloat(d.w),r:parseInt(d.r),date:todayStr()};
+      d.done=true;saved++;
+    }
+  });
+  saveDB(DB);
+  render();
+  const b=document.getElementById("saveDay");
+  const o=b.textContent;
+  b.textContent=saved+"개 종목 저장됨";
+  setTimeout(()=>b.textContent=o,1400);
+});
+
+document.getElementById("clearAll").addEventListener("click",()=>{
+  if(confirm("모든 기록을 지울까? 되돌릴 수 없어.")){
+    DB={};DRAFT={};saveDB(DB);render();
+  }
+});
+
+function updateStreak(){
+  const dates=new Set(Object.values(DB).map(v=>v.date).filter(Boolean));
+  document.getElementById("streak").innerHTML="기록한 날<br><b>"+dates.size+"일</b>";
+}
+const _r=render;render=function(){_r();updateStreak();};
+
+render();
+</script>
+</body>
+</html>
